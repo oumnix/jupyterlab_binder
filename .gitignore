@@ -1,0 +1,18 @@
+# Python venv
+.venv*
+__pycache__
+
+# Binder inputs
+input_binder
+
+# Notebook checkpoints
+.ipynb_checkpoints
+
+# Qarnot outputs
+outputs_binder
+
+# Local Python logs
+logs
+
+# Input data
+*.csv
