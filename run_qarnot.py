@@ -39,7 +39,7 @@ def submit_task(param_dict):
         # Fill in task constants from the notebook form
         task.constants['DOCKER_SSH'] = param_dict['ssh_key']
         task.constants['DOCKER_REPO'] = param_dict['soft']
-        task.constants['DOCKER_TAG'] = "test"
+        task.constants['DOCKER_TAG'] = "v1"
         task.constants['DOCKER_CMD'] = "/bin/bash /opt/start_jupyterlab.sh"
 
         task.snapshot(5)
@@ -103,9 +103,12 @@ def get_link(output_bucket, token):
 
 def abort_task(qarnot_token, uuid):
     conn = qarnot.Connection(client_token=qarnot_token)
-    task = conn.retrieve_task(uuid)
-    print("Retrieving results...")
-    task.instant()
-    task.download_results('outputs_binder')
-    print("Killing task...")
-    task.abort()
+    try:
+        task = conn.retrieve_task(uuid)
+        print("Retrieving results...")
+        task.instant()
+        task.download_results('outputs_binder')
+        print("Killing task...")
+        task.abort()
+    except qarnot.exceptions.MissingTaskException:
+        print("No task to kill...")
