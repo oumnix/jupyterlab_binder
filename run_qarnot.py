@@ -30,10 +30,6 @@ def submit_task(param_dict):
         output_bucket = conn.retrieve_or_create_bucket('jupyterlab-outputs')
         task.results = output_bucket
 
-        # Append previous output bucket to inputs if bool is true
-        if param_dict['use_output_bucket']:
-            task.resources.append(output_bucket)
-
         # Fill in task constants from the notebook form
         task.constants['DOCKER_SSH'] = param_dict['ssh_key']
         task.constants['DOCKER_REPO'] = param_dict['soft']
@@ -49,11 +45,18 @@ def submit_task(param_dict):
         link_done = False
         last_state = ''
         jupyter_link = ''
-        # Bool for clearing old logs (remove previous run's jupyter token)
-        cleared_old_log=False
         remote_log='logs/qarnot.log'
         # substring to look for in logs
         token = 'http://localhost:8888/lab?token='
+
+        # Delete old log file if present (to avoid fetching previous token)
+        if list(output_bucket.directory(directory='logs/'))[0].key==remote_log:
+            logger.debug("Purging previous logs...")
+            output_bucket.delete_file(remote_log)
+
+        # Append previous output bucket to inputs if bool is true
+        if param_dict['use_output_bucket']:
+            task.resources.append(output_bucket)
 
         # Submit the task
         logger.debug("Launching task...")    
@@ -66,11 +69,6 @@ def submit_task(param_dict):
                 logger.debug(last_state)
 
             if task.state == 'FullyExecuting':
-
-                # Delete old log file if present (to avoid fetching previous token)
-                if not cleared_old_log and list(output_bucket.directory(directory='logs/'))[0].key==remote_log:
-                    output_bucket.delete_file(remote_log)
-                    cleared_old_log=True
 
                 active_forward = task.status.running_instances_info.per_running_instance_info[0].active_forward
                 # If the ssh connexion was not done yet and the list active_forward is available (len!=0)
