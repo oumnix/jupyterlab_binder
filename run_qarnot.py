@@ -32,8 +32,6 @@ def submit_task(param_dict):
 
         # Append previous output bucket to inputs if bool is true
         if param_dict['use_output_bucket']:
-            # delete previous log to prevent fetching old jupyter link
-            output_bucket.delete_file('logs/qarnot.log')
             task.resources.append(output_bucket)
 
         # Fill in task constants from the notebook form
@@ -51,6 +49,9 @@ def submit_task(param_dict):
         link_done = False
         last_state = ''
         jupyter_link = ''
+        # Bool for clearing old logs (remove previous run's jupyter token)
+        cleared_old_log=False
+        remote_log='logs/qarnot.log'
         # substring to look for in logs
         token = 'http://localhost:8888/lab?token='
 
@@ -66,6 +67,11 @@ def submit_task(param_dict):
 
             if task.state == 'FullyExecuting':
 
+                # Delete old log file if present (to avoid fetching previous token)
+                if not cleared_old_log and list(output_bucket.directory(directory='logs/'))[0].key==remote_log:
+                    output_bucket.delete_file(remote_log)
+                    cleared_old_log=True
+
                 active_forward = task.status.running_instances_info.per_running_instance_info[0].active_forward
                 # If the ssh connexion was not done yet and the list active_forward is available (len!=0)
                 if len(active_forward)!=0 and not ssh_done:
@@ -76,7 +82,7 @@ def submit_task(param_dict):
                 # Fetch Jupyter link with secret token from logs on Qarnot
                 if not link_done:
                     try:
-                        jupyter_link = get_link(output_bucket, token)
+                        jupyter_link = get_link(output_bucket, token, remote_log)
                     except (FileNotFoundError, IndexError, botocore.exceptions.ClientError):
                         logger.debug("Link not available yet, retrying...")
                         time.sleep(5)
@@ -91,8 +97,8 @@ def submit_task(param_dict):
     except Exception:
         logger.exception("An exception occured.")
 
-def get_link(output_bucket, token):
-    log_file='outputs_binder/logs/qarnot.log'
+def get_link(output_bucket, token, remote_log):
+    log_file='outputs_binder/'+remote_log
     output_bucket.get_file(remote='logs/qarnot.log', local=log_file)
     results=[]
     with open(log_file, 'r') as myFile:
